@@ -6,7 +6,7 @@
 /*   By: hmrabet <hmrabet@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/25 07:00:48 by hmrabet           #+#    #+#             */
-/*   Updated: 2024/01/25 07:44:14 by hmrabet          ###   ########.fr       */
+/*   Updated: 2024/01/25 07:59:45 by hmrabet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,7 +30,7 @@ static char	*get_cmd(char **paths, char *cmd)
 	return (NULL);
 }
 
-static void	first_child(t_pipex pipex, char *argv[], char *envp[])
+static void	first_child(t_pipex pipex, char **argv, char **envp)
 {
 	dup2(pipex.tube[1], 1);
 	close(pipex.tube[0]);
@@ -46,7 +46,7 @@ static void	first_child(t_pipex pipex, char *argv[], char *envp[])
 	execve(pipex.cmd, pipex.cmd_args, envp);
 }
 
-static void	second_child(t_pipex pipex, char *argv[], char *envp[])
+static void	second_child(t_pipex pipex, char **argv, char **envp)
 {
 	dup2(pipex.tube[0], 0);
 	close(pipex.tube[1]);
@@ -68,7 +68,7 @@ static void	close_pipes(t_pipex *pipex)
 	close(pipex->tube[1]);
 }
 
-int	main(int argc, char *argv[], char *envp[])
+int	main(int argc, char **argv, char **envp)
 {
 	t_pipex	pipex;
 

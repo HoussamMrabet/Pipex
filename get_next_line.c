@@ -6,67 +6,43 @@
 /*   By: hmrabet <hmrabet@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2023/11/15 14:13:43 by hmrabet           #+#    #+#             */
-/*   Updated: 2024/01/05 02:27:13 by hmrabet          ###   ########.fr       */
+/*   Updated: 2024/01/25 07:54:25 by hmrabet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
-static char	*ft_get_line(char **s)
+int	some_error(char *str)
 {
-	char	*str;
-	char	*tmp;
-	size_t	i;
-	size_t	j;
-
-	i = 0;
-	j = 0;
-	while (*(*s + i) && *(*s + i) != '\n')
-		i++;
-	if (*(*s + i) == '\n')
-		i++;
-	str = (char *)malloc(i + 1);
-	if (!str)
-		return (free(*s), *s = NULL, NULL);
-	while (j < i)
-	{
-		*(str + j) = *(*s + j);
-		j++;
-	}
-	return (*(str + j) = '\0', tmp = ft_strdup_get(*s + i),
-		free(*s), *s = tmp, str);
+	if (str)
+		free(str);
+	return (-1);
 }
 
-static int	ft_read(char **saves, int fd)
+int	get_next_line(int fd, char **line)
 {
-	char	*buffer;
-	int		length;
+	char		*buf;
+	int			rd;
+	static char	*rem;
 
-	buffer = (char *)malloc((size_t)BUFFER_SIZE + 1);
-	if (!buffer)
-		return (free(*saves), *saves = NULL, -1);
-	length = read(fd, buffer, BUFFER_SIZE);
-	if (length <= 0)
-		return (free(buffer), length);
-	*(buffer + length) = '\0';
-	*saves = ft_strjoin_get(*saves, buffer);
-	free(buffer);
-	if (!saves || !*saves)
+	if (fd < 0 || BUFFER_SIZE < 1 || !line)
 		return (-1);
-	return (length);
-}
-
-char	*get_next_line(int fd)
-{
-	static char	*saves = NULL;
-	int			length;
-
-	if (fd < 0 || fd > 10240 || BUFFER_SIZE <= 0 || read(fd, NULL, 0) < 0)
-		return (free(saves), saves = NULL, NULL);
-	length = 1;
-	while (ft_strchr_get(saves, '\n') == -1 && length > 0)
-		length = ft_read(&saves, fd);
-	if (length <= 0 && (!saves || !*saves))
-		return (free(saves), saves = NULL, NULL);
-	return (ft_get_line(&saves));
+	buf = (char *)malloc(BUFFER_SIZE + 1);
+	if (!buf)
+		return (some_error(rem));
+	rd = 1;
+	while (!find_nl(rem) && rd > 0)
+	{
+		rd = read(fd, buf, BUFFER_SIZE);
+		if (rd < 0)
+			return (some_error(buf));
+		buf[rd] = '\0';
+		rem = str_join(rem, buf);
+	}
+	free(buf);
+	*line = get_line(rem);
+	rem = trim_rem(rem);
+	if (rd == 0 && !rem)
+		return (0);
+	return (1);
 }
