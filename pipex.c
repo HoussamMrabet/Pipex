@@ -6,63 +6,93 @@
 /*   By: hmrabet <hmrabet@student.1337.ma>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/01/25 07:00:48 by hmrabet           #+#    #+#             */
-/*   Updated: 2024/01/25 07:12:55 by hmrabet          ###   ########.fr       */
+/*   Updated: 2024/01/25 07:44:14 by hmrabet          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "pipex.h"
 
-void	exec(char *cmd, char **env)
+static char	*get_cmd(char **paths, char *cmd)
 {
-	char	**s_cmd;
-	char	*path;
+	char	*tmp;
+	char	*command;
 
-	s_cmd = ft_split(cmd, ' ');
-	path = get_path(s_cmd[0], env);
-	if (execve(path, s_cmd, env) == -1)
+	while (*paths)
 	{
-		ft_putstr_fd("pipex: command not found: ", 2);
-		ft_putendl_fd(s_cmd[0], 2);
-		ft_free_tab(s_cmd);
-		exit(0);
+		tmp = ft_strjoin(*paths, "/");
+		command = ft_strjoin(tmp, cmd);
+		free(tmp);
+		if (access(command, 0) == 0)
+			return (command);
+		free(command);
+		paths++;
 	}
+	return (NULL);
 }
 
-void	child(char **av, int *p_fd, char **env)
+static void	first_child(t_pipex pipex, char *argv[], char *envp[])
 {
-	int		fd;
-
-	fd = open_file(av[1], 0);
-	dup2(fd, 0);
-	dup2(p_fd[1], 1);
-	close(p_fd[0]);
-	exec(av[2], env);
+	dup2(pipex.tube[1], 1);
+	close(pipex.tube[0]);
+	dup2(pipex.infile, 0);
+	pipex.cmd_args = ft_split(argv[2], ' ');
+	pipex.cmd = get_cmd(pipex.cmd_paths, pipex.cmd_args[0]);
+	if (!pipex.cmd)
+	{
+		child_free(&pipex);
+		msg(ERR_CMD);
+		exit(1);
+	}
+	execve(pipex.cmd, pipex.cmd_args, envp);
 }
 
-void	parent(char **av, int *p_fd, char **env)
+static void	second_child(t_pipex pipex, char *argv[], char *envp[])
 {
-	int		fd;
-
-	fd = open_file(av[4], 1);
-	dup2(fd, 1);
-	dup2(p_fd[0], 0);
-	close(p_fd[1]);
-	exec(av[3], env);
+	dup2(pipex.tube[0], 0);
+	close(pipex.tube[1]);
+	dup2(pipex.outfile, 1);
+	pipex.cmd_args = ft_split(argv[3], ' ');
+	pipex.cmd = get_cmd(pipex.cmd_paths, pipex.cmd_args[0]);
+	if (!pipex.cmd)
+	{
+		child_free(&pipex);
+		msg(ERR_CMD);
+		exit(1);
+	}
+	execve(pipex.cmd, pipex.cmd_args, envp);
 }
 
-int	main(int ac, char **av, char **env)
+static void	close_pipes(t_pipex *pipex)
 {
-	int		p_fd[2];
-	pid_t	pid;
+	close(pipex->tube[0]);
+	close(pipex->tube[1]);
+}
 
-	if (ac != 5)
-		exit_handler(1);
-	if (pipe(p_fd) == -1)
-		exit(-1);
-	pid = fork();
-	if (pid == -1)
-		exit(-1);
-	if (!pid)
-		child(av, p_fd, env);
-	parent(av, p_fd, env);
+int	main(int argc, char *argv[], char *envp[])
+{
+	t_pipex	pipex;
+
+	if (argc != 5)
+		return (msg(ERR_INPUT));
+	pipex.infile = open(argv[1], O_CREAT | O_RDONLY, 0777);
+	if (pipex.infile < 0)
+		msg_error(ERR_INFILE);
+	pipex.outfile = open(argv[argc - 1], O_TRUNC | O_CREAT | O_RDWR, 0777);
+	if (pipex.outfile < 0)
+		msg_error(ERR_OUTFILE);
+	if (pipe(pipex.tube) < 0)
+		msg_error(ERR_PIPE);
+	pipex.paths = find_path(envp);
+	pipex.cmd_paths = ft_split(pipex.paths, ':');
+	pipex.pid1 = fork();
+	if (pipex.pid1 == 0)
+		first_child(pipex, argv, envp);
+	pipex.pid2 = fork();
+	if (pipex.pid2 == 0)
+		second_child(pipex, argv, envp);
+	close_pipes(&pipex);
+	waitpid(pipex.pid1, NULL, 0);
+	waitpid(pipex.pid2, NULL, 0);
+	parent_free(&pipex);
+	return (0);
 }

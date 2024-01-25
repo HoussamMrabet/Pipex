@@ -1,6 +1,6 @@
 NAME = pipex
 
-SRCS = pipex.c utils.c
+SRCS = pipex.c utils.c get_next_line.c get_next_line_utils.c
 
 OBJS = $(SRCS:.c=.o)
 
@@ -17,7 +17,7 @@ all : $(LIBFT) $(NAME)
 $(NAME) : $(OBJS)
 	$(CC) $(OBJS) $(FLAGS) -o $(NAME)
 
-%.o : %.c pipex.h libft/libft.a
+%.o : %.c pipex.h get_next_line.h libft/libft.a
 	$(CC) $(INCLUDES) -c $< -o $@
 
 $(LIBFT) :
